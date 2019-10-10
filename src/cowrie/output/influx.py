@@ -114,9 +114,11 @@ class Output(cowrie.core.output.Output):
         elif eventid == 'cowrie.session.connect':
             m['fields'].update({
                 'protocol': entry['protocol'],
+                'src_ip': entry['src_ip'],
                 'src_port': entry['src_port'],
                 'dst_port': entry['dst_port'],
                 'dst_ip': entry['dst_ip'],
+
             })
 
         elif eventid in ['cowrie.login.success', 'cowrie.login.failed']:
