@@ -141,6 +141,13 @@ class Output(cowrie.core.output.Output):
                         'country_code': response['country_code'],
                         'continent_code': response['continent_code'],
                     })
+                    m['tags'].update({
+                        'geohash': geohash.encode(response['latitude'], response['longitude']),
+                        'city': response['city'],
+                        'region_code': response['region_code'],
+                        'country_code': response['country_code'],
+                        'continent_code': response['continent_code'],
+                    })
                 except requests.exceptions.RequestException as e:
                     log.err("output_influx: I/O error({0}): '{1}'".format(
                         e.errno, e.strerror))
