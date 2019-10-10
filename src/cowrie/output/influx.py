@@ -8,6 +8,10 @@ from twisted.python import log
 import cowrie.core.output
 from cowrie.core.config import CowrieConfig
 
+import requests
+import json
+import geohash
+
 
 class Output(cowrie.core.output.Output):
     """
@@ -19,6 +23,9 @@ class Output(cowrie.core.output.Output):
         ssl = CowrieConfig().getboolean('output_influx', 'ssl', fallback=False)
 
         self.client = None
+
+        self.ipstack_api_key = None
+
         try:
             self.client = InfluxDBClient(host=host, port=port, ssl=ssl, verify_ssl=ssl)
         except InfluxDBClientError as e:
@@ -81,6 +88,9 @@ class Output(cowrie.core.output.Output):
 
         self.client.switch_database(dbname)
 
+        if CowrieConfig().has_option("ipstack_api", "ipstack_api_key"):
+            self.ipstack_api_key = CowrieConfig().get("ipstack_api", "ipstack_api_key")
+
     def stop(self):
         pass
 
@@ -112,14 +122,48 @@ class Output(cowrie.core.output.Output):
             })
 
         elif eventid == 'cowrie.session.connect':
-            m['fields'].update({
-                'protocol': entry['protocol'],
-                'src_ip': entry['src_ip'],
-                'src_port': entry['src_port'],
-                'dst_port': entry['dst_port'],
-                'dst_ip': entry['dst_ip'],
+            if self.ipstack_api_key != None:
+                url = "http://api.ipstack.com/" + entry['src_ip'] + "?access_key=" + self.ipstack_api_key + "&format=1"
+                try:
+                    response = requests.get(url)
+                    response = json.loads(response.response.txt)
+                    m['fields'].update({
+                        'protocol': entry['protocol'],
+                        'src_ip': entry['src_ip'],
+                        'src_port': entry['src_port'],
+                        'dst_port': entry['dst_port'],
+                        'dst_ip': entry['dst_ip'],
+                        'lat': response['latitude'],
+                        'long': response['longitude'],
+                        'geohash': geohash.encode(response['latitude'], response['longitude']),
+                        'city': response['city'],
+                        'region_code': response['region_code'],
+                        'country_code': response['country_code'],
+                        'continent_code': response['continent_code'],
+                    })
+                except requests.exceptions.RequestException as e:
+                    log.err("output_influx: I/O error({0}): '{1}'".format(
+                        e.errno, e.strerror))
+                    m['fields'].update({
+                        'protocol': entry['protocol'],
+                        'src_ip': entry['src_ip'],
+                        'src_port': entry['src_port'],
+                        'dst_port': entry['dst_port'],
+                        'dst_ip': entry['dst_ip'],
 
-            })
+                    })
+
+
+
+            else:
+                m['fields'].update({
+                    'protocol': entry['protocol'],
+                    'src_ip': entry['src_ip'],
+                    'src_port': entry['src_port'],
+                    'dst_port': entry['dst_port'],
+                    'dst_ip': entry['dst_ip'],
+
+                })
 
         elif eventid in ['cowrie.login.success', 'cowrie.login.failed']:
             m['fields'].update({
