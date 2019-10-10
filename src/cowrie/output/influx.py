@@ -126,7 +126,7 @@ class Output(cowrie.core.output.Output):
                 url = "http://api.ipstack.com/" + entry['src_ip'] + "?access_key=" + self.ipstack_api_key + "&format=1"
                 try:
                     response = requests.get(url)
-                    response = json.loads(response.response.txt)
+                    response = json.loads(response.txt)
                     m['fields'].update({
                         'protocol': entry['protocol'],
                         'src_ip': entry['src_ip'],
